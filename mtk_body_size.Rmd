@@ -1,0 +1,185 @@
+---
+title: "Cleans Miller-ter Kuile Body Size data"
+author: "Camila Vargas"
+date: "8/12/2021"
+output: html_document
+---
+
+This script cleans data on Body sizes for taxa including cane spiders, geckos, and other spiders and insects provided by Ana Miller-ter Kuile.
+
+## Set up
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(googledrive)
+library(here)
+library(data.table)
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(lubridate)
+
+## Sets R not to use scientific notations
+options(scipen=999) 
+
+# Create raw data folders - DO I NEED A IF STATEMENT???
+
+if (!dir.exists(here::here("/raw_data"))){
+  dir.create(paste0(getwd(),"/raw_data"))
+}
+
+## If necesary create a sub directory inside the raw_data. This will be the case for porject that will end up in more than one package.
+dir.create(paste0(getwd(),"/raw_data/mtk_body_size"))
+
+```
+
+
+
+## Download data files into local computer
+
+In this case, the project has multiple types of data. Each type of data will be cleaned in its own Rmd and will become its own package. 
+Make sure the file path on the code is updated to the correct folder. In this case we are working with the weather data, so data is saved inside the `weather` folder. Update folder name if you are downloading other type of data.
+
+```{r download files}
+# url of folder where the data lives
+# Copy pasete the url of the folder where the data lives
+
+folder_url <- "https://drive.google.com/drive/u/1/folders/1Ypg74d5XzyCLG03qEVR1eaJOrvREyRHC"
+
+# list of files inside the folder
+files <- drive_ls(as_id(folder_url))
+
+## Download each file to local computer
+purrr::walk2(
+    map(files$id, as_id),
+    paste0("raw_data/mtk_body_size/", files$name),
+    drive_download,
+    overwrite = TRUE)
+
+# Check all files where downloaded
+# Count files inside the raw_data forder to make sure the number of files downloaded is what is expected.
+raw_data_path <- paste0(getwd(), "/raw_data/mtk_body_size")
+
+length(list.files(raw_data_path))
+
+```
+
+
+
+## Functions and tables with files info
+Creating a table with all of our files by type to use as an index to access each file.
+
+```{r read data}
+
+## List wit all csv files in raw data
+all_csv <- tibble(list.files(raw_data_path, pattern = ".csv")) %>% 
+  rename(file_name = 1) %>% 
+  mutate(path = paste0(raw_data_path, "/", file_name),
+         n = 1:n(),
+         type = "body_size") %>% 
+  unite(obj_name, type, n, sep = "_", remove = FALSE)
+
+## List with all xls files
+all_xls <- tibble(list.files(raw_data_path, pattern = c("xls", "xlsx"))) %>% 
+  rename(file_name = 1) %>% 
+  mutate(path = paste0(raw_data_path, "/", file_name),
+         n = 1:n(),
+         type = "body_size") %>% 
+  unite(obj_name, type, n, sep = "_", remove = FALSE)
+
+
+## function to read csv and clean names as we read the file
+read_csv_clean <- function(dataset){
+  
+  read_csv(dataset) %>% 
+    clean_names()
+}
+
+## Check sheets in Excels files
+
+excel_sheets(all_xls$path[2])
+excel_sheets(all_xls$path[3])
+excel_sheets(all_xls$path[4])
+excel_sheets(all_xls$path[5])
+excel_sheets(all_xls$path[6])
+excel_sheets(all_xls$path[7])
+
+```
+
+## Read csv files
+
+The only csv file is Spider Insect mass length
+
+```{r}
+## Read in all csv
+for (i in all_csv$n){
+  
+  assign(all_csv$obj_name[i], read_csv_clean(all_csv$path[i]))
+}
+
+```
+
+
+## Read excel files
+
+**Cane Spider**
+```{r}
+## chseck sheet names
+excel_sheets(all_xls$path[1])
+
+cane_spider_09 <- read_excel(all_xls$path[1], sheet = "Sheet1") %>% 
+  clean_names()
+
+## Is this table a summary table from data above?
+cane_spider_09_2 <- read_excel(all_xls$path[1], sheet = "Sheet2") %>% 
+  clean_names()
+
+cane_spider_10 <- read_excel(all_xls$path[2], sheet = "Sheet1") %>% 
+  clean_names()
+
+
+excel_sheets(all_xls$path[6])
+cane_spider_15_loc <- read_excel(all_xls$path[6], sheet = "Spider Vial Locations") %>% 
+  clean_names()
+
+cane_spider_15_size <- read_excel(all_xls$path[6], sheet = "Spider Sizes") %>% 
+  clean_names()
+
+cane_spider_15_me <- read_excel(all_xls$path[6], sheet = "Measurement Errors") %>% 
+  clean_names()
+
+
+```
+
+**Gecko**
+```{r}
+excel_sheets(all_xls$path[3])
+gecko_10 <- read_excel(all_xls$path[3], sheet = "Sheet1") %>% 
+  clean_names()
+
+excel_sheets(all_xls$path[4])
+gecko_11 <- read_excel(all_xls$path[4], sheet = "geckos", skip = 1) %>% 
+  clean_names()
+
+excel_sheets(all_xls$path[4])
+gecko_11_summary <- read_excel(all_xls$path[4], sheet = "survey summary", skip = 1) %>% 
+  clean_names()
+
+excel_sheets(all_xls$path[5])
+gecko_14 <- read_excel(all_xls$path[5], sheet = "geckos", skip = 1) %>% 
+  clean_names()
+
+gecko_14_summary <- read_excel(all_xls$path[5], sheet = "survey summary", skip = 1) %>% 
+  clean_names()
+
+excel_sheets(all_xls$path[7])
+gecko_15_surv <- read_excel(all_xls$path[7], sheet = "Survey Data") %>% 
+  clean_names()
+
+gecko_15_me <- read_excel(all_xls$path[7], sheet = "Gecko Measurements") %>% 
+  clean_names()
+
+
+```
+
